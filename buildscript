@@ -90,8 +90,8 @@ prepare() {
 	$target/scripts/feeds install -p fastd fastd libuecc
 	$target/scripts/feeds install -p tunneldigger tunneldigger
 	$target/scripts/feeds install -p libremap libremap-agent
-	$target/scripts/feeds install -p routing alfred kmod-batman-adv kmod-batgat
-	$target/scripts/feeds install -p openwrt bridge ethtool gpioctl-sysfs horst libugpio mii-tool wavemon kmod-gpiotoggling
+	$target/scripts/feeds install -p routing alfred kmod-batman-adv kmod-batgat olsrd
+	$target/scripts/feeds install -p openwrt bridge ethtool gpioctl-sysfs horst libugpio mii-tool wavemon kmod-gpiotoggling squid
 
 	# todo evaluate this with the new openwrt
 	# This changes the default behavior of sysupgrade to not save the config 
