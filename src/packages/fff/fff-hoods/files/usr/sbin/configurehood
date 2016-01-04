@@ -1,0 +1,146 @@
+#!/bin/sh
+
+HOODDIR=/etc/hoods
+
+. /usr/share/libubox/jshn.sh
+
+myLat=$(uci get 'system.@system[0].latitude')
+myLon=$(uci get 'system.@system[0].longitude')
+
+if [ -z "$myLat" -a -z "$myLon" ]; then
+  nearestHood=trainstation
+else
+  for hood in $HOODDIR/*.hood; do
+    echo "Parsing $hood"
+    filename=$(basename "$hood" .hood)
+    json_load "$(cat $hood)"
+    json_get_var ret version
+    if [ "$ret" -ne "1" ]; then
+      echo "Wrong version for $hood"
+      continue
+    fi
+
+    json_select hood
+    json_get_var protocol protocol
+    if [ "$protocol" != "batman-adv-v14" ]; then
+      echo "Unknown protocol in $hood"
+      continue
+    fi
+    json_get_var type2 type2
+    json_get_var type5 type5
+    if [ "$type2" != "adhoc" -o "$type5" != "adhoc" ]; then
+      echo "Unknown mesh type in $hood"
+      continue
+    fi
+    json_get_var hoodname name
+    if ! json_select location; then
+        echo "No location for $hood"
+        continue
+    fi
+    json_get_var lat lat
+    json_get_var lon lon
+
+    d=$(echo "$lat $lon $myLat $myLon" | awk '
+    function rad(deg) { # degrees to radians
+        return deg * (3.1415926 / 180.)
+    }
+    function distance(lat1,lon1,lat2,lon2) {
+        dlat = rad(lat2-lat1)
+        dlon = rad(lon2-lon1)
+        lat1 = rad(lat1)
+        lat2 = rad(lat2)
+        a = (sin(dlat/2))^2 + cos(lat1) * cos(lat2) * (sin(dlon/2))^2
+        return 6371 * 2 * atan2(sqrt(a),sqrt(1-a)) * 1000
+    }
+    {
+        printf("%d", distance($1, $2, $3, $4))
+    }')
+    if [ -z "$nearestDistance" ]; then
+      nearestDistance=$d
+      nearestHood=$filename
+    else
+      if [ "$d" -lt "$nearestDistance" ]; then
+        nearestDistance=$d
+        nearestHood=$filename
+      fi
+    fi
+  done
+fi
+
+echo "Found Hood: $nearestHood in $nearestDistance m"
+
+json_load "$(cat $HOODDIR/$nearestHood.hood)"
+json_select hood
+
+json_get_var hood name
+json_get_var bssid bssid
+json_get_var channel2 channel2
+json_get_var mode2 mode2
+json_get_var protocol protocol
+json_get_var type2 type2
+
+echo "Setting hood name: $hood"
+echo "Setting channel 2.4 Ghz: $channel2"
+echo "Setting mode 2.4 GHz: $mode2"
+echo "Setting mesh 2.4 GHz type: $type2"
+
+echo "Shutting down wifi"
+wifi down
+
+uci set wireless.radio0=wifi-device
+uci set wireless.radio0.type=mac80211
+uci set wireless.radio0.channel=$channel2
+uci set wireless.radio0.phy=phy0
+uci set wireless.radio0.hwmode=11g
+uci set wireless.radio0.htmode=$mode2
+uci set wireless.radio0.country=DE
+uci set wireless.@wifi-iface[0]=wifi-iface
+uci set wireless.@wifi-iface[0].device=radio0
+uci set wireless.@wifi-iface[0].network=w2mesh
+uci set wireless.@wifi-iface[0].ifname=w2mesh
+uci set wireless.@wifi-iface[0].mode=$type2
+uci set wireless.@wifi-iface[0].bssid=$bssid
+uci set wireless.@wifi-iface[0].ssid=${protocol}.${hood}.freifunk.net
+uci set wireless.@wifi-iface[0].mcast_rate=6000
+uci set wireless.@wifi-iface[0].encryption=none
+uci set wireless.@wifi-iface[1]=wifi-iface
+uci set wireless.@wifi-iface[1].device=radio0
+uci set wireless.@wifi-iface[1].network=mesh
+uci set wireless.@wifi-iface[1].ifname=w2ap
+uci set wireless.@wifi-iface[1].mode=ap
+uci set wireless.@wifi-iface[1].ssid=${hood}.freifunk.net
+uci set wireless.@wifi-iface[1].encryption=none
+uci commit
+
+echo "Loading wifi"
+wifi
+
+json_select ..
+json_select network
+
+echo "Setting prefix: $prefix"
+json_get_var prefix ula_prefix
+suffix=$(awk -F: '{ print $1$2":"$3$4":"$5$6 }' /sys/class/net/br-mesh/address)
+addr=$(echo $prefix | sed -e 's/\//'$suffix'\//')
+
+uci -q batch <<-EOF >/dev/null
+    del network.globals
+    add network.globals
+    set network.globals.ula_prefix=$prefix
+    set network.mesh.ip6addr=$addr
+    commit network
+EOF
+
+echo "Restarting network"
+for ip in $(ip -6 addr show br-mesh | awk '/fdff/{ print $2 }'); do
+    ip -6 addr del $ip dev br-mesh
+done
+ip -6 addr add $addr dev br-mesh
+#/etc/init.d/odhcpd stop
+#/etc/init.d/network restart
+#/etc/init.d/odhcpd start
+/etc/init.d/fff-uradvd restart
+
+echo "Finding fastd Gateways, if online. Configure fastd."
+
+echo "Done"

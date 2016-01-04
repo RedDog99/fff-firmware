@@ -1,0 +1,18 @@
+{
+ "version": 0,
+ "hood": {
+  "name": "test",
+  "bssid": "ca:ff:ee:ba:be:ff",
+  "protocol": "batman-adv-v14",
+  "channel2": 13,
+  "mode2": "ht20",
+  "type2": "adhoc",
+  "channel5": 40,
+  "mode5": "ht40+",
+  "type5": "adhoc",
+  "location": { "lat": 49.46654, "lon": 10.992 },
+ },
+ "network": {
+  "ula_prefix": "fdff:ff::/64"
+ }
+}

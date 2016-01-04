@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "hood": {
+  "name": "nuernberg",
+  "bssid": "ca:ff:ee:ba:be:03",
+  "protocol": "batman-adv-v14",
+  "channel2": 1,
+  "mode2": "HT20",
+  "type": "adhoc",
+  "channel5": 40,
+  "mode5": "HT40+",
+  "type": "adhoc",
+  "location": { "lat": 49.448856, "lon": 11.082108 },
+ },
+ "network": {
+  "ula_prefix": "fdff:3::/64"
+ }
+}

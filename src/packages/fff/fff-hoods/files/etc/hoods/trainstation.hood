@@ -1,0 +1,17 @@
+{
+ "version": 1,
+ "hood": {
+  "name": "trainstation",
+  "bssid": "ca:ff:ee:ba:be:00",
+  "protocol": "batman-adv-v14",
+  "channel2": 1,
+  "mode2": "ht20",
+  "type2": "adhoc",
+  "channel5": 40,
+  "mode5": "ht40+",
+  "type5": "adhoc",
+ },
+ "network": {
+  "ula_prefix": "fdff:0::/64"
+ }
+}

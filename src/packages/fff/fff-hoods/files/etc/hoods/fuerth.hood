@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "hood": {
+  "name": "fuerth",
+  "bssid": "ca:ff:ee:ba:be:02",
+  "protocol": "batman-adv-v14",
+  "channel2": 1,
+  "mode2": "ht20",
+  "type2": "adhoc",
+  "channel5": 40,
+  "mode5": "ht40+",
+  "type5": "adhoc",
+  "location": { "lat": 49.478330, "lon": 10.990270 },
+ },
+ "network": {
+  "ula_prefix": "fdff:2::/64"
+ }
+}
