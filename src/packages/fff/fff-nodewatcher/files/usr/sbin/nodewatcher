@@ -21,13 +21,13 @@ else
 fi
 
 if [ $SCRIPT_ERROR_LEVEL -gt "1" ]; then
-    err() {
-        echo $1 >> $SCRIPT_LOGFILE
-    }
+	err() {
+		echo $1 >> $SCRIPT_LOGFILE
+	}
 else
-    err() {
-        :
-    }
+	err() {
+		:
+	}
 fi
 
 #this method checks id the logfile has bekome too big and deletes the first X lines
@@ -35,7 +35,7 @@ delete_log() {
 	if [ -f $SCRIPT_LOGFILE ]; then
 		if [ `ls -la $SCRIPT_LOGFILE | awk '{ print $5 }'` -gt "6000" ]; then
 			sed -i '1,60d' $SCRIPT_LOGFILE
-            err "`date`: Logfile has been made smaller"
+			err "`date`: Logfile has been made smaller"
 		fi
 	fi
 }
@@ -74,24 +74,24 @@ crawl() {
 		contact="<contact>$contact</contact>"
 	fi
 	uptime=$(awk '{ printf "<uptime>"$1"</uptime><idletime>"$2"</idletime>" }' /proc/uptime)
-	
-    memory=$(awk '
-        /^MemTotal/ { printf "<memory_total>"$2"</memory_total>" }
-        /^Cached:/ { printf "<memory_caching>"$2"</memory_caching>" }
-        /^Buffers/ { printf "<memory_buffering>"$2"</memory_buffering>" }
-        /^MemFree/ { printf "<memory_free>"$2"</memory_free>" }
-    ' /proc/meminfo)
+
+	memory=$(awk '
+		/^MemTotal/ { printf "<memory_total>"$2"</memory_total>" }
+		/^Cached:/ { printf "<memory_caching>"$2"</memory_caching>" }
+		/^Buffers/ { printf "<memory_buffering>"$2"</memory_buffering>" }
+		/^MemFree/ { printf "<memory_free>"$2"</memory_free>" }
+	' /proc/meminfo)
 	cpu=$(awk -F': ' '
-        /model/ { printf "<cpu>"$2"</cpu>" }
-        /system type/ { printf "<chipset>"$2"</chipset>" }
-    ' /proc/cpuinfo)
+		/model/ { printf "<cpu>"$2"</cpu>" }
+		/system type/ { printf "<chipset>"$2"</chipset>" }
+	' /proc/cpuinfo)
 	model="<model>$(cat /var/sysinfo/model)</model>"
 	local_time="`date +%s`"
 	load=$(awk '{ printf "<loadavg>"$3"</loadavg><processes>"$4"</processes>" }' /proc/loadavg)
 
-    err "`date`: Collecting version information"
+	err "`date`: Collecting version information"
 	
-    batman_adv_version=$(cat /sys/module/batman_adv/version)
+	batman_adv_version=$(cat /sys/module/batman_adv/version)
 	kernel_version=$(uname -r)
 	fastd_version=$(fastd -v | awk '{ print $2 }')
 	nodewatcher_version=$SCRIPT_VERSION
@@ -100,91 +100,91 @@ crawl() {
 		status_text="<status_text>$(cat "$SCRIPT_STATUS_FILE")</status_text>"
 	fi
 
-    # example for /etc/openwrt_release:
-    #DISTRIB_ID="OpenWrt"
-    #DISTRIB_RELEASE="Attitude Adjustment"
-    #DISTRIB_REVISION="r35298"
-    #DISTRIB_CODENAME="attitude_adjustment"
-    #DISTRIB_TARGET="atheros/generic"
-    #DISTRIB_DESCRIPTION="OpenWrt Attitude Adjustment 12.09-rc1"
+	# example for /etc/openwrt_release:
+	#DISTRIB_ID="OpenWrt"
+	#DISTRIB_RELEASE="Attitude Adjustment"
+	#DISTRIB_REVISION="r35298"
+	#DISTRIB_CODENAME="attitude_adjustment"
+	#DISTRIB_TARGET="atheros/generic"
+	#DISTRIB_DESCRIPTION="OpenWrt Attitude Adjustment 12.09-rc1"
 	. /etc/openwrt_release
-    distname=$DISTRIB_ID
-    distversion=$DISTRIB_RELEASE
+	distname=$DISTRIB_ID
+	distversion=$DISTRIB_RELEASE
 
-    # example for /etc/firmware_release:
-    #FIRMWARE_VERSION="95f36685e7b6cbf423f02cf5c7f1e785fd4ccdae-dirty"
-    #BUILD_DATE="build date: Di 29. Jan 19:33:34 CET 2013"
-    #OPENWRT_CORE_REVISION="35298"
-    #OPENWRT_FEEDS_PACKAGES_REVISION="35298"
+	# example for /etc/firmware_release:
+	#FIRMWARE_VERSION="95f36685e7b6cbf423f02cf5c7f1e785fd4ccdae-dirty"
+	#BUILD_DATE="build date: Di 29. Jan 19:33:34 CET 2013"
+	#OPENWRT_CORE_REVISION="35298"
+	#OPENWRT_FEEDS_PACKAGES_REVISION="35298"
 	. /etc/firmware_release
 	SYSTEM_DATA="<status>online</status>$status_text<hostname>$hostname</hostname>${description}${geo}${position_comment}${contact}<distname>$distname</distname><distversion>$distversion</distversion>$cpu$model$memory$load$uptime<local_time>$local_time</local_time><batman_advanced_version>$batman_adv_version</batman_advanced_version><kernel_version>$kernel_version</kernel_version><fastd_version>$fastd_version</fastd_version><nodewatcher_version>$nodewatcher_version</nodewatcher_version><firmware_version>$FIRMWARE_VERSION</firmware_version><firmware_community>$FIRMWARE_COMMUNITY</firmware_community><firmware_revision>$BUILD_DATE</firmware_revision><openwrt_core_revision>$OPENWRT_CORE_REVISION</openwrt_core_revision><openwrt_feeds_packages_revision>$OPENWRT_FEEDS_PACKAGES_REVISION</openwrt_feeds_packages_revision>"
 
-    err "`date`: Collecting information from network interfaces"
+	err "`date`: Collecting information from network interfaces"
 
 	#Get interfaces
 	interface_data=""	
 	#Loop interfaces
-    for filename in `grep 'up\|unknown' /sys/class/net/*/operstate`; do
-        ifpath=${filename%/operstate*}
-        iface=${ifpath#/sys/class/net/}
-        if inArray "$IFACEBLACKLIST" "$iface"; then
-            continue
-        fi
+	for filename in `grep 'up\|unknown' /sys/class/net/*/operstate`; do
+		ifpath=${filename%/operstate*}
+		iface=${ifpath#/sys/class/net/}
+		if inArray "$IFACEBLACKLIST" "$iface"; then
+			continue
+		fi
 
-        #Get interface data for whitelisted interfaces
-        awkscript='
-            /ether/ { printf "<mac_addr>"$2"</mac_addr>" }
-            /mtu/ { printf "<mtu>"$5"</mtu>" }'
-        if inArray "$IPWHITELIST" "$iface"; then
-            awkscript=$awkscript'
-                /inet / { split($2, a, "/"); printf "<ipv4_addr>"a[1]"</ipv4_addr>" }
-                /inet6/ && /scope global/ { printf "<ipv6_addr>"$2"</ipv6_addr>" }
-                /inet6/ && /scope link/ { printf "<ipv6_link_local_addr>"$2"</ipv6_link_local_addr>"}'
-        fi
-        addrs=$(ip addr show dev ${iface} | awk "$awkscript")
+		#Get interface data for whitelisted interfaces
+		awkscript='
+			/ether/ { printf "<mac_addr>"$2"</mac_addr>" }
+			/mtu/ { printf "<mtu>"$5"</mtu>" }'
+		if inArray "$IPWHITELIST" "$iface"; then
+			awkscript=$awkscript'
+				/inet / { split($2, a, "/"); printf "<ipv4_addr>"a[1]"</ipv4_addr>" }
+				/inet6/ && /scope global/ { printf "<ipv6_addr>"$2"</ipv6_addr>" }
+				/inet6/ && /scope link/ { printf "<ipv6_link_local_addr>"$2"</ipv6_link_local_addr>"}'
+		fi
+		addrs=$(ip addr show dev ${iface} | awk "$awkscript")
 
-        traffic_rx=`cat $ifpath/statistics/rx_bytes`
-        traffic_tx=`cat $ifpath/statistics/tx_bytes`
-        
-        interface_data=$interface_data"<$iface><name>$iface</name>$addrs<traffic_rx>$traffic_rx</traffic_rx><traffic_tx>$traffic_tx</traffic_tx>"
+		traffic_rx=`cat $ifpath/statistics/rx_bytes`
+		traffic_tx=`cat $ifpath/statistics/tx_bytes`
+		
+		interface_data=$interface_data"<$iface><name>$iface</name>$addrs<traffic_rx>$traffic_rx</traffic_rx><traffic_tx>$traffic_tx</traffic_tx>"
 
-        interface_data=$interface_data$(iwconfig ${iface} 2>/dev/null | awk -F':' '
-            /Mode/{ split($2, m, " "); printf "<wlan_mode>"m[1]"</wlan_mode>" }
-            /Cell/{ split($0, c, " "); printf "<wlan_bssid>"c[5]"</wlan_bssid>" }
-            /ESSID/ { split($0, e, "\""); printf "<wlan_essid>"e[2]"</wlan_essid>" }
-            /Freq/{ split($3, f, " "); printf "<wlan_frequency>"f[1]f[2]"</wlan_frequency>" }
-            /Tx-Power/{ split($0, p, "="); sub(/[[:space:]]*$/, "", p[2]); printf "<wlan_tx_power>"p[2]"</wlan_tx_power>" }
-        ')"</$iface>"
+		interface_data=$interface_data$(iwconfig ${iface} 2>/dev/null | awk -F':' '
+			/Mode/{ split($2, m, " "); printf "<wlan_mode>"m[1]"</wlan_mode>" }
+			/Cell/{ split($0, c, " "); printf "<wlan_bssid>"c[5]"</wlan_bssid>" }
+			/ESSID/ { split($0, e, "\""); printf "<wlan_essid>"e[2]"</wlan_essid>" }
+			/Freq/{ split($3, f, " "); printf "<wlan_frequency>"f[1]f[2]"</wlan_frequency>" }
+			/Tx-Power/{ split($0, p, "="); sub(/[[:space:]]*$/, "", p[2]); printf "<wlan_tx_power>"p[2]"</wlan_tx_power>" }
+		')"</$iface>"
 	done
 
-    err "`date`: Collecting information from batman advanced and it´s interfaces"
+	err "`date`: Collecting information from batman advanced and it´s interfaces"
 	#B.A.T.M.A.N. advanced
-    if [ -f /sys/module/batman_adv/version ]; then
-        for iface in $(grep active /sys/class/net/*/batman_adv/iface_status); do
-            status=${iface#*:}
-            iface=${iface%/batman_adv/iface_status:active}
-            iface=${iface#/sys/class/net/}
-            BATMAN_ADV_INTERFACES=$BATMAN_ADV_INTERFACES"<$iface><name>$iface</name><status>$status</status></$iface>"
-        done
+	if [ -f /sys/module/batman_adv/version ]; then
+		for iface in $(grep active /sys/class/net/*/batman_adv/iface_status); do
+			status=${iface#*:}
+			iface=${iface%/batman_adv/iface_status:active}
+			iface=${iface#/sys/class/net/}
+			BATMAN_ADV_INTERFACES=$BATMAN_ADV_INTERFACES"<$iface><name>$iface</name><status>$status</status></$iface>"
+		done
 
-        # Build a list of direct neighbors
-        batman_adv_originators=$(awk \
-            'BEGIN { FS=" "; i=0 } # set the delimiter to " "
-            /O/ { next } # ignore lines with O (will remove second line)
-            /B/ { next } # ignore line with B (will remove first line)
-            {   sub("\\(", "", $0) # remove parentheses
-                sub("\\)", "", $0)
-                sub("\\[", "", $0)
-                sub("\\]:", "", $0)
-                sub("  ", " ", $0)
-                o=$1".*"$1 # build a regex to find lines that contains the $1 (=originator) twice
-                if ($0 ~ o) # filter for this regex (will remove entries without direct neighbor)
-                {
-                    printf "<originator_"i"><originator>"$1"</originator><link_quality>"$3"</link_quality><nexthop>"$4"</nexthop><last_seen>"$2"</last_seen><outgoing_interface>"$5"</outgoing_interface></originator_"i">"
-                    i++
-                }
-            }' /sys/kernel/debug/batman_adv/bat0/originators)
-        
+		# Build a list of direct neighbors
+		batman_adv_originators=$(awk \
+			'BEGIN { FS=" "; i=0 } # set the delimiter to " "
+			/O/ { next } # ignore lines with O (will remove second line)
+			/B/ { next } # ignore line with B (will remove first line)
+			{   sub("\\(", "", $0) # remove parentheses
+				sub("\\)", "", $0)
+				sub("\\[", "", $0)
+				sub("\\]:", "", $0)
+				sub("  ", " ", $0)
+				o=$1".*"$1 # build a regex to find lines that contains the $1 (=originator) twice
+				if ($0 ~ o) # filter for this regex (will remove entries without direct neighbor)
+				{
+					printf "<originator_"i"><originator>"$1"</originator><link_quality>"$3"</link_quality><nexthop>"$4"</nexthop><last_seen>"$2"</last_seen><outgoing_interface>"$5"</outgoing_interface></originator_"i">"
+					i++
+				}
+			}' /sys/kernel/debug/batman_adv/bat0/originators)
+
 		batman_adv_gateway_mode=$(batctl gw)
 		
 		batman_adv_gateway_list=$(awk \
@@ -201,8 +201,8 @@ crawl() {
 				printf "<gateway_"i"><selected>"$1"</selected><gateway>"$2"</gateway><link_quality>"$3"</link_quality><nexthop>"$4"</nexthop><outgoing_interface>"$5"</outgoing_interface><gw_class>"$6" "$7" "$8"</gw_class></gateway_"i">"
 				i++
 			}' /sys/kernel/debug/batman_adv/bat0/gateways)
-    fi
-    err "`date`: Collecting information about conected clients"
+	fi
+	err "`date`: Collecting information about conected clients"
 	#CLIENTS
 	client_count=0
 	CLIENT_INTERFACES=$(bridge link | awk '$2 !~/^bat/{ printf $2" " }')
@@ -211,7 +211,7 @@ crawl() {
 		client_count=$((client_count + $cc))
 	done
 
-    err "`date`: Putting all information into a XML-File and save it at "$SCRIPT_DATA_FILE
+	err "`date`: Putting all information into a XML-File and save it at "$SCRIPT_DATA_FILE
 
 	DATA="<?xml version='1.0' standalone='yes'?><data><system_data>$SYSTEM_DATA</system_data><interface_data>$interface_data</interface_data><batman_adv_interfaces>$BATMAN_ADV_INTERFACES</batman_adv_interfaces><batman_adv_originators>$batman_adv_originators</batman_adv_originators><batman_adv_gateway_mode>$batman_adv_gateway_mode</batman_adv_gateway_mode><batman_adv_gateway_list>$batman_adv_gateway_list</batman_adv_gateway_list><client_count>$client_count</client_count></data>"
 
