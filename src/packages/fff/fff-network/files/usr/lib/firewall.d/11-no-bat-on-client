@@ -1,0 +1,6 @@
+# No input from/to Spanning-Tree-Protocol from batman
+ebtables -A INPUT --logical-in br-mesh -i ethclient -p 0x4305 -j DROP
+
+meshdev=$(uci get network.ethbat.ifname)
+
+ebtables -A INPUT -i $meshdev -p ! 0x4305 -j DROP

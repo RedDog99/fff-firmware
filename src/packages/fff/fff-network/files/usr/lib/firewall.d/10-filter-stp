@@ -1,0 +1,8 @@
+# No input from/to Spanning-Tree-Protocol from batman
+ebtables -A INPUT --logical-in br-mesh -i bat0 -d BGA -j DROP
+
+# Do not forward Spanning-Tree-Protocol
+ebtables -A FORWARD --logical-out br-mesh -o bat0 -d BGA -j DROP
+
+# Do not output Spanning-Tree-Protocol to batman
+ebtables -A OUTPUT --logical-out br-mesh -o bat0 -d BGA -j DROP

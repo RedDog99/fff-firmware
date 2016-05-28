@@ -1,0 +1,49 @@
+#!/bin/sh
+
+# load current board config
+BOARD="$(uci get board.model.name)"
+. /etc/network.$BOARD
+
+# remove unused global ipv6 net
+uci del network.globals
+
+# compute some macs
+LANIFACE="$(uci get network.lan.ifname)"
+LANMAC="$(cat "/sys/class/net/${LANIFACE}/address" | awk -F: '{ printf("%x:%s:%s:%s:%s:%s", xor("0x"$1, 0x2), $2, $3, $4, $5, $6) }')"
+
+uci batch <<EOF
+del network.lan
+
+set network.mesh=interface
+set network.mesh.type='bridge'
+set network.mesh.auto='1'
+set network.mesh.stp='1'
+set network.mesh.ifname='ethclient bat0'
+
+set network.ethbat=interface
+set network.ethbat.ifname='${LANIFACE}'
+set network.ethbat.proto='batadv'
+set network.ethbat.mtu='1528'
+set network.ethbat.mesh='bat0'
+
+set network.ethclient=device
+set network.ethclient.type='macvlan'
+set network.ethclient.name='ethclient'
+set network.ethclient.ifname='${LANIFACE}'
+set network.ethclient.macaddr='${LANMAC}'
+set network.ethclient.mode='private'
+
+commit network
+EOF
+
+if [[ -n "$ROUTERMAC" ]]; then
+    NEW_MACADDR=$(cat /sys/class/net/$ROUTERMAC/address)
+    uci set network.mesh.macaddr=$NEW_MACADDR
+    uci commit
+fi
+
+#if [[ -n "$ETH0MAC" ]]; then
+#    NEW_MACADDR=$(cat "/sys/class/net/${ETH0MAC}/address")
+#    uci set network.eth0.macaddr=$NEW_MACADDR
+#    uci commit
+#fi

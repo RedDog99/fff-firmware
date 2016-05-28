@@ -13,7 +13,7 @@ define Package/fff-network
     CATEGORY:=Freifunk
     TITLE:= Freifunk-Franken network configuration
     URL:=http://www.freifunk-franken.de
-    DEPENDS:=+fff-uradvd +fff-boardname
+    DEPENDS:=+fff-uradvd +fff-boardname +kmod-macvlan
 endef
 
 define Package/fff-network/description
