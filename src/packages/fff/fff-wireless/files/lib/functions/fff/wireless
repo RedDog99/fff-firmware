@@ -9,7 +9,7 @@ wifiDelAll() {
 		return 1
 	fi
 
-	uci delete wireless
+	> /etc/config/wireless
 
 	return 0
 }
