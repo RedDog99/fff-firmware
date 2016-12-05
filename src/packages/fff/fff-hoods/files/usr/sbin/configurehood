@@ -1,0 +1,142 @@
+#!/bin/sh
+
+HOODDIR=/etc/hoods
+
+. /usr/share/libubox/jshn.sh
+. /lib/functions/fff/wireless
+
+myLat=$(uci get 'system.@system[0].latitude')
+myLon=$(uci get 'system.@system[0].longitude')
+
+if [ -z "$myLat" ] || [ -z "$myLon" ]; then
+  nearestHood="/etc/hoods/trainstation.hood"
+else
+  for filename in $HOODDIR/*.hood; do
+    hood=$(basename "$filename")
+    echo "Parsing $hood"
+    json_load "$(cat $filename)"
+    json_get_var ret version
+    if [ "$ret" -ne "1" ]; then
+      echo "Wrong version for $hood"
+      continue
+    fi
+
+    json_select hood
+    json_get_var protocol protocol
+    if [ "$protocol" != "batman-adv-v14" ]; then
+      echo "Unknown protocol in $hood"
+      continue
+    fi
+    json_get_var type2 type2
+    json_get_var type5 type5
+    if [ "$type2" != "adhoc" -o "$type5" != "adhoc" ]; then
+      echo "Unknown mesh type in $hood"
+      continue
+    fi
+    json_get_var hoodname name
+    if ! json_select location; then
+        echo "No location for $hood"
+        continue
+    fi
+    json_get_var lat lat
+    json_get_var lon lon
+
+    d=$(echo "$lat $lon $myLat $myLon" | awk '
+    function rad(deg) { # degrees to radians
+        return deg * (3.1415926 / 180.)
+    }
+    function distance(lat1,lon1,lat2,lon2) {
+        dlat = rad(lat2-lat1)
+        dlon = rad(lon2-lon1)
+        lat1 = rad(lat1)
+        lat2 = rad(lat2)
+        a = (sin(dlat/2))^2 + cos(lat1) * cos(lat2) * (sin(dlon/2))^2
+        return 6371 * 2 * atan2(sqrt(a),sqrt(1-a)) * 1000
+    }
+    {
+        printf("%d", distance($1, $2, $3, $4))
+    }')
+    if [ -z "$nearestDistance" ]; then
+      nearestDistance=$d
+      nearestHood=$filename
+    else
+      if [ "$d" -lt "$nearestDistance" ]; then
+        nearestDistance=$d
+        nearestHood=$filename
+      fi
+    fi
+  done
+fi
+
+echo "Found Hood: $nearestHood in $nearestDistance m"
+
+json_load "$(cat $nearestHood)"
+json_select hood
+
+json_get_var hood name
+json_get_var mesh_bssid mesh_bssid
+json_get_var mesh_essid mesh_essid
+json_get_var essid essid
+json_get_var channel2 channel2
+json_get_var mode2 mode2
+json_get_var type2 type2
+json_get_var channel5 channel5
+json_get_var mode5 mode5
+json_get_var type5 type5
+json_get_var protocol protocol
+
+echo "Setting hood name: $hood"
+uci set system.@system[0].hood=$hood
+
+if ! wifiDelAll; then
+  echo "Can't delete current wifi setup"
+  exit 1
+fi
+
+for phy in $(iw phy | awk '/^Wiphy/{ print $2 }'); do
+  if iw phy "$phy" info | grep -q -m1 "2... MHz"; then
+    echo "$phy is 2.4 GHz"
+    radio=$(wifiAddPhy "$phy" "$channel2" "$mode2")
+    if [ -z "$radio" ]; then
+      echo "Can't create radio for $phy"
+      exit 1
+    fi
+  fi
+  if iw phy "$phy" info | grep -q -m1 "5... MHz"; then
+    echo "$phy is 5 GHz"
+    radio=$(wifiAddPhy "$phy" "$channel5" "mode5")
+    if [ -z "$radio" ]; then
+      echo "Can't create radio for $phy"
+      exit 1
+    fi
+  fi
+
+  if ! wifiAddAP "$radio" "$essid"; then
+    echo "Can't add AP interface on $radio0."
+    exit 1
+  fi
+
+  if ! wifiAddAdHocMesh "$radio" "$mesh_essid" "$mesh_bssid"; then
+    echo "Can't add AP interface on $radio0."
+    exit 1
+  fi
+done
+
+echo "Loading wifi"
+wifi
+
+json_select ..
+json_select network
+
+json_get_var prefix ula_prefix
+echo "Setting prefix: $prefix"
+suffix=$(awk -F: '{ print $1$2":"$3$4":"$5$6 }' /sys/class/net/br-mesh/address)
+addr=$(echo $prefix | sed -e 's/\//'$suffix'\//')
+
+uci -q batch <<-EOF >/dev/null
+    del network.globals
+    set network.globals=globals
+    set network.globals.ula_prefix="$prefix"
+    set network.mesh.ip6addr="$addr"
+    commit network
+EOF

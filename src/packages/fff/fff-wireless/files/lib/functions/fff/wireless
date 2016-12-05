@@ -15,14 +15,15 @@ wifiDelAll() {
 }
 
 wifiAddPhy() {
-	if [ $# -ne "2" ]
+	if [ $# -ne "3" ]
 	then
-		echo "Usage: wifiAddPhy <phy> <channel>"
+		echo "Usage: wifiAddPhy <phy> <channel> <htmode>"
 		return 1
 	fi
 
 	local phy=$1
 	local channel=$2
+	local htmode=$3
 	local radio="radio$(echo $phy | tr -d -C [0-9])"
 	local hwmode="11g"
 	if [ "$channel" -gt "14" ]; then
@@ -35,7 +36,7 @@ wifiAddPhy() {
 		set wireless.${radio}.channel='${channel}'
 		set wireless.${radio}.phy='${phy}'
 		set wireless.${radio}.hwmode='${hwmode}'
-		set wireless.${radio}.htmode='HT20'
+		set wireless.${radio}.htmode='${htmode}'
 		set wireless.${radio}.country='DE'
 		commit wireless
 	__EOF__

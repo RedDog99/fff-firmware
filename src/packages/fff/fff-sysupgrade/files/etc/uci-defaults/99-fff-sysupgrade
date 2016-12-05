@@ -9,4 +9,5 @@ cat > /etc/sysupgrade.conf <<-__EOF__
 /etc/dropbear/authorized_keys
 /etc/network.mode
 /etc/config/system
+/etc/hoods/
 __EOF__

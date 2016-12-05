@@ -150,18 +150,16 @@ if [[ -n "$ETH0MAC" ]]; then
         /etc/init.d/network restart
 fi
 
-if uci get network.mesh.ip6addr
+if uci get network.globals.ula_prefix
 then
-    echo "IPv6 for mesh is set already"
-else
     # Some time needed :(
     sleep 5
+    prefix=$(uci get network.globals.ula_prefix)
 
     for ip in $(ip -6 addr show br-mesh | awk '/fdff/{ print $2 }'); do
         ip -6 addr del $ip dev br-mesh
     done
 
-    prefix="fdff:0::/64"
     # Set $prefix::MAC as IP
     suffix=$(awk -F: '{ print $1$2":"$3$4":"$5$6 }' /sys/class/net/br-mesh/address)
     addr=$(echo $prefix | sed -e 's/\//'$suffix'\//')
@@ -188,4 +186,6 @@ else
     uci -q commit network
 
     /etc/init.d/fff-uradvd restart
+else
+    echo "IPv6 Prefix is not set"
 fi
