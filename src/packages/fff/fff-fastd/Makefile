@@ -18,7 +18,8 @@ define Package/fff-fastd
              +@FASTD_ENABLE_CIPHER_NULL \
              +@FASTD_WITH_STATUS_SOCKET \
              +fastd \
-             +fff-random
+             +fff-random \
+             +fff-hoods
 endef
 
 define Package/fff-fastd/description

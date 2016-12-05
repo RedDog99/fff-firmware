@@ -1,40 +1,74 @@
 #!/bin/sh
 
+. /usr/share/libubox/jshn.sh
+. /usr/lib/validate_ip
+
 test -f /tmp/started || exit
 
+hood="$(uci get system.@system[0].hood)"
+
 make_config() {
-# remove old config
->/etc/config/tunneldigger
-rm /tmp/fastd_${project}_peers/*
-count=0
-# get fastd peers
-pubkey=$(echo "secret \"$(uci get fastd.fff.secret)\";" | fastd -c - --show-key --machine-readable)
-wget -T15 "http://keyserver.freifunk-franken.de/${project}/geo.php?mac=$mac&name=$hostname&port=$port&key=$pubkey&lat=$lat&long=$long" -O /tmp/fastd_${project}_output
-filecounts=$(awk '/^####/ { gsub(/^####/, "", $0); gsub(/.conf/, "", $0); print $0; }' /tmp/fastd_${project}_output)
-for file in $filecounts; do
-    awk "{ if(a) print }; /^####$file.conf$/{a=1}; /^$/{a=0};" /tmp/fastd_${project}_output | sed 's/ float;/;/g' > /etc/fastd/$project/peers/$file
-    echo 'float yes;' >> /etc/fastd/$project/peers/$file
+    # remove old config
+    >/etc/config/tunneldigger
+    rm -f /tmp/fastd_FFF_peers/*
+    rm -f /etc/fastd/FFF/peers/*
 
-    # ask for Broker and select the tunnel
-    IP=$(awk -F\" '/remote/ {print $2}' /etc/fastd/${project}/peers/$file)
-    if [ "l2tp" = "$(wget -T10 $IP/vpn.txt -O - 2>/dev/null)" ]; then
-        # Gateway offers l2tp
-        FDPORT=$(awk '/remote/{gsub(";", ""); print $5}' /etc/fastd/${project}/peers/$file)
-        L2PORT=$((FDPORT + 10000))
-        UUID=$hostname
+    json_load "$(cat "/etc/hoods/$hood.hood")"
+    json_select vpn
+    local count="1"
+    while json_select $count > /dev/null
+    do
+        json_get_var protocol protocol
+        if [ "$protocol" = "fastd" ]
+        then
+            json_get_var servername name
+            echo "#name \"$servername\";" > "/etc/fastd/FFF/peers/$servername"
+            json_get_var key key
+            echo "key \"$key\";" >> "/etc/fastd/FFF/peers/$servername"
+            json_get_var address address
+            json_get_var port port
+            if valid_ip4 "$address"
+            then
+                echo "remote ipv4 \"$address\" port $port;" >> "/etc/fastd/FFF/peers/$servername"
+            elif valid_ip6 "$address"
+            then
+                echo "remote ipv6 \"$address\" port $port;" >> "/etc/fastd/FFF/peers/$servername"
+            else
+                echo "Invalid IP-Address provided!"
+                rm -f "/etc/fastd/FFF/peers/$servername"
+                json_select ".."
+                count=$((count+1))
+                continue
+            fi
+            echo "float yes;" >> "/etc/fastd/FFF/peers/$servername"
+        elif [ "$protocol" = "tunneldigger" ]
+        then
+            json_get_var address address
+            if ! valid_ip4 "$address" && ! valid_ip6 "$address"
+            then
+                json_select ".."
+                count=$((count+1))
+                continue
+            fi
 
-        uci set tunneldigger.$count=broker
-        uci set tunneldigger.$count.address="$IP:$L2PORT"
-        uci set tunneldigger.$count.uuid="$UUID"
-        uci set tunneldigger.$count.interface="l2tp$count"
-        uci set tunneldigger.$count.enabled="1"
-        uci set tunneldigger.$count.hook_script='/etc/tunneldigger/tunneldigger.hook'
-        uci -c /tmp commit tunneldigger
-        count=$((count + 1))
-        # remove this fastd-peer
-        rm /etc/fastd/${project}/peers/$file
-    fi
-done
+            json_get_var port port
+
+            uci set tunneldigger.$count=broker
+            uci set tunneldigger.$count.address="$address:$port"
+            uci set tunneldigger.$count.uuid="$hostname"
+            uci set tunneldigger.$count.interface="l2tp$count"
+            uci set tunneldigger.$count.enabled="1"
+            uci set tunneldigger.$count.hook_script='/etc/tunneldigger/tunneldigger.hook'
+            uci -c /tmp commit tunneldigger
+        else
+            echo "protocol $protocol is not supported by this script"
+            json_select ".."
+            count=$((count+1))
+            continue
+        fi
+        json_select ".."
+        count=$((count+1))
+    done
 }
 
 # main
@@ -43,32 +77,28 @@ test_ipv4_host2="8.8.8.8"        # Google DNS
 test_ipv6_host1="heise.de"       # heise Zeitschriftenverlag
 
 # Only do something when the router has internet connection
-if ping -w5 -c3 "$test_ipv4_host1" &>/dev/null ||
-   ping -w5 -c3 "$test_ipv4_host2" &>/dev/null ||
-   ping6 -w5 -c3 "$test_ipv6_host1" &>/dev/null; then
+if ping -w5 -c3 "$test_ipv4_host1" >/dev/null 2>&1 ||
+   ping -w5 -c3 "$test_ipv4_host2" >/dev/null 2>&1 ||
+   ping6 -w5 -c3 "$test_ipv6_host1" >/dev/null 2>&1; then
 
     # set some vars
-    . /etc/community.cfg
-    project="$VPN_PROJECT"
     mac=$(awk '{ mac=toupper($1); gsub(":", "", mac); print mac }' /sys/class/net/br-mesh/address 2>/dev/null)
-    lat=$(uci get system.@system[0].latitude)
-    long=$(uci get system.@system[0].longitude)
     hostname=$(cat /proc/sys/kernel/hostname)
     [ "$hostname" = "OpenWrt" ] && hostname=""
     [ "$hostname" = "" ] &&  hostname="$mac"
 
-    if [ ! -d /tmp/fastd_${project}_peers ]; then
+    if [ ! -d /tmp/fastd_FFF_peers ]; then
         # first run after reboot
-        mkdir /tmp/fastd_${project}_peers
+        mkdir /tmp/fastd_FFF_peers
         # do we have a fastd secret
-        if ! egrep "option secret '[0-9a-f]{64}'" /etc/config/fastd &>/dev/null; then
+        if ! egrep "option secret '[0-9a-f]{64}'" /etc/config/fastd >/dev/null 2>&1; then
             secret=$(fastd --generate-key 2>&1 |  awk '/[Ss]ecret/ { print $2 }')
-            uci set fastd.${project}.secret="$secret"
+            uci set fastd.FFF.secret="$secret"
             uci commit fastd
         fi
         make_config
         # start fastd only if there are some peers left
-        [ "$(ls /etc/fastd/${project}/peers/* 2>/dev/null)" ] && /etc/init.d/fastd start
+        [ "$(ls "/etc/fastd/${project}/peers/"* 2>/dev/null)" ] && /etc/init.d/fastd start
         /etc/init.d/tunneldigger start
     else
         # check if new tunneldigger conf is different
@@ -79,11 +109,14 @@ if ping -w5 -c3 "$test_ipv4_host1" &>/dev/null ||
         /etc/init.d/fastd reload
 
         # fastd start/stop for various situations
-        if [ "$(ls /etc/fastd/${project}/peers/* 2>/dev/null)" ]; then
-            [ -d /proc/$(cat /tmp/run/fastd.${project}.pid) ] || /etc/init.d/fastd start
+        if [ "$(ls /etc/fastd/FFF/peers/* 2>/dev/null)" ]; then
+            [ -d "/proc/$(cat /tmp/run/fastd.FFF.pid)" ] || /etc/init.d/fastd start
         else
-            [ -d /proc/$(cat /tmp/run/fastd.${project}.pid) ] && /etc/init.d/fastd stop
+            [ -d "/proc/$(cat /tmp/run/fastd.FFF.pid)" ] && /etc/init.d/fastd stop
         fi
 
     fi
+else
+    echo "Der Router kann keine Verbindung zum VPN-Server aufbauen"
+    echo "$0 macht nichts!"
 fi
