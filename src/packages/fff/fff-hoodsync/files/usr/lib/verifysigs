@@ -1,0 +1,62 @@
+#!/bin/sh
+
+. /usr/share/libubox/jshn.sh
+
+if [ -z "$TRUSTEDKEYDIR" ]; then
+    TRUSTEDKEYDIR=/etc/hoods/keys
+fi
+
+gettrustedkeys()
+{
+    local trustedkeys=""
+    for keyfile in $TRUSTEDKEYDIR/*.key
+    do
+        json_load "$(cat $keyfile)"
+        json_get_var valid valid
+        if [ "$valid" == "true" ]
+        then
+            json_get_var PubKey PubKey
+            trustedkeys="$trustedkeys,$PubKey"
+        fi
+    done
+    echo "$trustedkeys"
+}
+
+verifysigs()
+{
+    local file="$1"
+    local sigfile="$2"
+    local sigsneeded="$3"
+    local trustedkeys="$(gettrustedkeys)"
+    echo "Check if signatures for $file are valid"
+    echo "Parsing $sigfile"
+    json_load "$(cat $sigfile)"
+    json_select Sigs
+    local Sigs=""
+    local Keys=""
+    local Index="1"
+    while json_select $Index > /dev/null
+    do
+        json_get_var SigPubKey PubKey
+        if echo "$Keys"|grep "$SigPubKey" > /dev/null
+        then
+            echo "$SigPubKey is duplicate"
+        elif echo "$trustedkeys"|grep "$SigPubKey" > /dev/null
+        then
+            Keys="$Keys -p $SigPubKey"
+            json_get_var Sig Sig
+            Sigs="$Sigs -s $Sig"
+        else
+            echo "$SigPubKey is not trusted"
+        fi
+        json_select ".."
+        Index=$((Index+1))
+    done
+    if ecdsaverify -n $sigsneeded $Sigs $Keys $file;then
+        echo "Valid Signatures"
+        return 0
+    else
+        echo "Invalid Signatures"
+        return 1
+    fi
+}

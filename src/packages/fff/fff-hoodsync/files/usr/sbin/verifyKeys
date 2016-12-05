@@ -1,0 +1,56 @@
+#!/bin/sh
+
+. /usr/share/libubox/jshn.sh
+. /usr/lib/verifysigs
+
+TRUSTEDKEYDIR=/etc/hoods/keys
+
+if [ -z "$1" ]
+then
+    echo "Setting Key directory to $1"
+    KEYDIR="$1"
+else
+    echo "Setting Key directory to $TRUSTEDKEYDIR"
+    KEYDIR="$TRUSTEDKEYDIR"
+fi
+
+for keyfile in $KEYDIR/*.key
+do
+    echo "Check if key-signatures are valid"
+    echo "Parsing $(basename $keyfile)"
+    json_load "$(cat $keyfile)"
+    json_select key
+    json_get_var newTimestamp timestamp
+    if [ -f "$TRUSTEDKEYDIR/$(basename $keyfile)" ]
+    then
+        json_load "$(cat $TRUSTEDKEYDIR/$(basename $keyfile))"
+        json_select key
+        json_get_var oldTimestamp timestamp
+        if [ "$newTimestamp" -le "$oldTimestamp" ]
+        then
+            echo "the synchronized file is older than current"
+            rm -f "$keyfile"
+            rm -f "$keyfile".sig
+        fi
+    fi
+    if verifysigs "$keyfile" "$keyfile.sig" "2"
+    then
+        cp "$keyfile" "$TRUSTEDKEYDIR/."
+        cp "$keyfile".sig "$TRUSTEDKEYDIR/."
+        json_load "$(cat $TRUSTEDKEYDIR/$(basename $keyfile))"
+        json_select key
+        json_get_var valid valid
+        if [ "$valid" == "true" ]
+        then
+            echo "There are enough valid Signatures, so key is now trusted."
+        else
+            echo "There are enough valid Signatures. The key was revoked."
+        fi
+    else
+        echo "There aren't enough valid Signatures"
+        echo "$keyfile will be removed"
+        rm -f "$keyfile"
+        rm -f "$keyfile".sig
+    fi
+done
+

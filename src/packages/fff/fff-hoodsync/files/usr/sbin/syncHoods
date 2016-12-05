@@ -1,0 +1,25 @@
+#!/bin/sh
+
+UPDATELINK="http://[fdff:3::e418:c9ff:fec6:9d7d]/foo/hoods"
+HOODDIR=/tmp/syncedhoods
+KEYDIR=/tmp/syncedkeys
+
+rm -rf "$HOODDIR"
+rm -rf "$KEYDIR"
+mkdir -p "$HOODDIR"
+mkdir -p "$KEYDIR"
+rm -f /tmp/hoods.list
+rm -f /tmp/keys.list
+wget "$UPDATELINK/hoods.list" -O /tmp/hoods.list
+wget "$UPDATELINK/keys/keys.list" -O /tmp/keys.list
+
+while read filename
+do
+    wget  "$UPDATELINK/$filename" -O "$HOODDIR/$filename"
+done < /tmp/hoods.list
+
+while read filename
+do
+    wget  "$UPDATELINK/keys/$filename" -O "$KEYDIR/$filename"
+done < /tmp/keys.list
+

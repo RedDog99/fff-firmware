@@ -1,0 +1,56 @@
+#!/bin/sh
+
+. /usr/share/libubox/jshn.sh
+. /usr/lib/verifysigs
+
+TRUSTEDHOODDIR=/etc/hoods
+
+if [ -z "$1" ]
+then
+    echo "Setting Hood directory to $1"
+    HOODDIR="$1"
+else
+    echo "Setting Hood directory to $TRUSTEDHOODDIR"
+    HOODDIR="$TRUSTEDHOODDIR"
+fi
+
+for hoodfile in $HOODDIR/*.hood
+do
+    echo "Check if hood-files are valid"
+    echo "Parsing $(basename $hoodfile)"
+    json_load "$(cat $hoodfile)"
+    json_select hood
+    json_get_var newHoodName name
+    json_get_var newTimestamp timestamp
+    if [ -f "$TRUSTEDHOODDIR/$newHoodName.hood" ]
+    then
+        json_load "$(cat $TRUSTEDHOODDIR/$newHoodName.hood)"
+        json_select hood
+        json_get_var oldHoodName name
+        json_get_var oldTimestamp timestamp
+        if [ "$newHoodName" != "$oldHoodName" ]
+        then
+            echo "Hoodnames are not matching"
+            rm -f "$hoodfile"
+            rm -f "$hoodfile".sig
+        fi
+        if [ "$newTimestamp" -le "$oldTimestamp" ]
+        then
+            echo "the synchronized file is older than current"
+            rm -f "$hoodfile"
+            rm -f "$hoodfile".sig
+        fi
+    fi
+    if verifysigs "$hoodfile" "$hoodfile.sig" "2"
+    then
+        echo "There are enough valid Signatures, so hoodfile is now trusted."
+        cp "$hoodfile" "$TRUSTEDHOODDIR/."
+        cp "$hoodfile".sig "$TRUSTEDHOODDIR/."
+    else
+        echo "There aren't enough valid Signatures"
+        echo "$hoodfile will be removed now"
+        rm -f "$hoodfile"
+        rm -f "$hoodfile".sig
+    fi
+    echo
+done
