@@ -4,6 +4,7 @@ HOODDIR=/etc/hoods
 
 . /usr/share/libubox/jshn.sh
 . /lib/functions/fff/wireless
+. /lib/functions/fff/timeserver
 
 myLat=$(uci get 'system.@system[0].latitude')
 myLon=$(uci get 'system.@system[0].longitude')
@@ -84,9 +85,15 @@ json_get_var channel5 channel5
 json_get_var mode5 mode5
 json_get_var type5 type5
 json_get_var protocol protocol
+json_get_var upgrade_path upgrade_path
+json_get_var ntp_ip ntp_ip
 
 echo "Setting hood name: $hood"
 uci set system.@system[0].hood=$hood
+echo "Setting upgrade path $upgrade_path"
+uci set system.@system[0].upgrade_path="$upgrade_path"
+
+setTimeserver "$ntp_ip"
 
 if ! wifiDelAll; then
   echo "Can't delete current wifi setup"

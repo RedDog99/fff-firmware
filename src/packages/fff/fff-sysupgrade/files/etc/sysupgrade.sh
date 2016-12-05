@@ -3,7 +3,7 @@ cd /tmp/
 
 . /etc/firmware_release
 
-. /etc/community.cfg
+UPGRADE_PATH="$(uci get system.@system[0].upgrade_path)"
 
 BOARD=$(uci get board.model.name)
 
