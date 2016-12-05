@@ -1,0 +1,31 @@
+{
+ "version": 1,
+ "hood": {
+  "name": "trainstation",
+  "essid": "franken.freifunk.net",
+  "mesh_bssid": "ca:ff:ee:ba:be:00",
+  "mesh_essid": "mesh.franken.freifunk.net",
+  "protocol": "batman-adv-v15",
+  "channel2": 1,
+  "mode2": "HT20",
+  "type2": "adhoc",
+  "channel5": 40,
+  "mode5": "HT40+",
+  "type5": "adhoc",
+  "upgrade_path": "http://[fe80::ff:feee:1%br-mesh]/dev/firmware/aux/current",
+  "ntp_ip": "fe80::ff:feee:1%br-mesh",
+  "timestamp": "1464785911"
+ },
+ "network": {
+  "ula_prefix": "fdff:0::/64"
+ },
+ "vpn": [
+  {
+    "name": "fff-nue2-gw2.fff.community",
+    "protocol": "fastd",
+    "address": "31.172.112.34",
+    "port": "10004",
+    "key": "invalid"
+  }
+ ]
+}

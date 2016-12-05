@@ -1,0 +1,32 @@
+{
+ "version": 1,
+ "hood": {
+  "name": "nuernberg",
+  "essid": "nbg.franken.freifunk.net",
+  "mesh_bssid": "ca:ff:ee:ba:be:03",
+  "mesh_essid": "mesh.nbg.franken.freifunk.net",
+  "protocol": "batman-adv-v15",
+  "channel2": 1,
+  "mode2": "HT20",
+  "type2": "adhoc",
+  "channel5": 40,
+  "mode5": "HT40+",
+  "type5": "adhoc",
+  "location": { "lat": 49.45401, "lon": 11.07733 },
+  "upgrade_path": "http://[fe80::ff:feee:1%br-mesh]/dev/firmware/current",
+  "ntp_ip": "fe80::ff:feee:1%br-mesh",
+  "timestamp": "1463514352"
+ },
+ "network": {
+  "ula_prefix": "fdff:3::/64"
+ },
+ "vpn": [
+  {
+    "name": "FFF-GW-M2.fff.community",
+    "protocol": "fastd",
+    "address": "91.134.133.6",
+    "port": "10004",
+    "key": "a50533e664ec6e08074d0fcaa77eea09d13f9e8c18e5880ce6f73673110e0b19"
+  }
+ ]
+}
