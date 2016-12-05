@@ -125,6 +125,11 @@ patch_target() {
             patch --no-backup-if-mismatch -p0 -d "$target" -i "$patch"
         done
     fi
+    if [ "$(find "$PWD"/build_patches/openwrt-packages/*.patch 2> /dev/null | wc -l)" -ge 1 ]; then
+        for patch in "$PWD"/build_patches/openwrt-packages/*.patch; do
+            patch -N -r - --no-backup-if-mismatch -p0 -d "$PWD/src/packages/openwrt" -i "$patch"
+        done
+    fi
 }
 
 prepare() {
