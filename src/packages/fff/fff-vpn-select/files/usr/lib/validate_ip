@@ -1,0 +1,192 @@
+#!/bin/sh
+
+valid_ip4()
+{
+    local  ip=$1
+    if [ "$ip" = "255.255.255.255" ] || [ "$ip" = "0.0.0.0" ] || [ "$ip" = "127.0.0.1" ] ;then
+        return 1
+    fi
+    # shellcheck disable=SC2039
+    ip=${ip//./ }
+    if ! [ $(echo "$ip" | wc -w ) -eq 4 ]; then
+        return 1
+    fi
+    valid="yes"
+    for octett in $ip; do
+        if [ "$octett" -gt 255 ] && [ "$octett" -lt 0 ] ;then
+            valid="no"
+        fi
+    done
+    if [ "$valid" = "yes" ]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+#from http://stackoverflow.com/questions/10278513/bash-shell-decimal-to-binary-conversion
+convertDecToBase() # base<=10 because of using digits 0..9 for representation, only
+{
+   local val=$1
+   local base=$2
+   local result=""
+   # shellcheck disable=SC2086
+   if [ $base -lt 2 ] || [ $base -gt 10 ]; then
+       echo "Invalid base!"
+       return 1
+   fi
+   # shellcheck disable=SC2086
+   while [ $val -ne 0 ] ; do
+        # shellcheck disable=SC2004
+        result=$(( $val % $base ))$result #residual is next digit
+        # shellcheck disable=SC2004
+        val=$(( $val / $base ))
+   done
+   # shellcheck disable=SC2039
+   echo -n $result
+}
+
+convertBinToDec()
+{
+    local lenght=${#1}
+    local count=$lenght
+    local multiplicator=1
+    local value=0
+    # shellcheck disable=SC2086
+    while [ $count -gt 0 ]; do
+        value=$(( $(( $(echo "$1"|cut -c"$count") * multiplicator )) + value))
+        count=$(( count - 1))
+        multiplicator=$(( multiplicator * 2))
+    done
+    # shellcheck disable=SC2039
+    echo -n "$value"
+}
+
+convertDecToHex()
+{
+    printf '%x' "$1"
+}
+
+convertBinToHex()
+{
+    convertDecToHex "$(convertBinToDec "$1")"
+}
+
+convertHextoDec()
+{
+    local lenght=${#1}
+    local count=$lenght
+    local value=0
+    local multiplicator=1
+    local tempdec
+    while [ $count -gt 0 ]; do
+        case $(echo "$1"|cut -c"$count") in
+            [aA] )
+                tempdec=10 ;;
+            [bB] )
+                tempdec=11 ;;
+            [cC] )
+                tempdec=12 ;;
+            [dD] )
+                tempdec=13 ;;
+            [eE] )
+                tempdec=14 ;;
+            [fF] )
+                tempdec=15 ;;
+            [0123456789] )
+                tempdec="$1" ;;
+            * )
+                return 1 ;;
+        esac
+        value=$(( $(( $tempdec * multiplicator )) + value))
+        count=$(( count - 1))
+        multiplicator=$(( multiplicator * 16))
+    done
+    echo -n "$value"
+}
+
+valid_ip6()
+{
+    local inputip="$1"
+    local field
+    local octett
+    local binvalue
+    local ip6="NULL"
+    local expandedip="NULL"
+    local blockcount
+    if echo "$inputip"|grep "expand" > /dev/null ;then
+        return 1
+    fi
+    if ! echo "$inputip"|grep ":" > /dev/null ;then
+        return 1
+    fi
+    #convert v4 part to v6
+    # shellcheck disable=SC2039
+    inputip=${inputip//::/XX}
+    inputip=${inputip//:/ }
+    inputip=${inputip//XX/::}
+    for field in $inputip; do
+        if valid_ip4 "$field" ;then
+            # shellcheck disable=SC2039
+            field=${field//./ }
+            for octett in $field ;do
+                #base 2 for toBinary conversion
+                octett=$(convertDecToBase "$octett" 2)
+                #expand every shortended octett to 8 bit
+                while [ ${#octett} -lt 8 ]; do
+                    octett="0$octett"
+                done
+                binvalue="$binvalue$octett"
+            done
+            #Split Binary value into 2 seperated HEX values
+            # shellcheck disable=SC2140
+            field="$("$(convertBinToHex "$(echo "$binvalue"|cut -c1-16)")":"$(convertBinToHex "$(echo "$binvalue"|cut -c17-32)")")"
+        fi
+        if [ "$ip6" = "NULL" ]; then
+            ip6="$field"
+        else
+            ip6="$ip6:$field"
+        fi
+    done
+    blockcount=$( echo ${ip6//:/ }| wc -w )
+    if [ $blockcount -lt 1 ] || [ $blockcount -gt 8 ]; then
+        return 1
+    elif [ $blockcount -eq 8 ] && echo $ip6| grep "::" > /dev/null; then
+        return 1
+    elif [ $blockcount -lt 8 ] && ! echo $ip6| grep "::" > /dev/null; then
+        return 1
+    fi
+    # shellcheck disable=SC2039
+    ip6=${ip6//::/ expand }
+    # shellcheck disable=SC2039
+    ip6=${ip6//:/ }
+    #echo "$ip6"
+    for field in $ip6; do
+        if [ "$field" = "expand" ]; then
+            field=""
+            while [ $blockcount -ne 8 ]; do
+                if [ $blockcount = 7 ]; then
+                    field="$field""0000"
+                else
+                    field="$field""0000:"
+                fi
+                blockcount=$(( $blockcount + 1 ))
+            done
+        else
+            if [ $(convertHextoDec "$field") -ge 0 ] || [ $(conertHextoDec "$field") -le 65535 ]; then
+                while [ ${#field} -lt 4 ]; do
+                    field="0$field"
+                done
+            else
+                return 1
+            fi
+        fi
+        if [ "$expandedip" = "NULL" ]; then
+            expandedip="$field"
+        else
+            expandedip="$expandedip:$field"
+        fi
+    done
+    echo -n $expandedip
+    return 0
+}
