@@ -20,7 +20,6 @@ define Package/fff/base
              +fff-nodewatcher \
              +fff-web \
              +fff-uradvd \
-             +fff-batman-adv-legacy \
              +fff-firewall \
              +fff-support \
              +fff-network \
@@ -38,6 +37,7 @@ define Package/fff-node
     TITLE+=(Home node)
     DEPENDS+=+fff-fastd \
              +fff-vpn-select \
+             +fff-batman-adv-legacy
     VARIANT:=homenode
 endef
 
@@ -62,7 +62,8 @@ define Package/fff-layer3
              +gre \
              +@PACKAGE_grev4 \
              +@PACKAGE_grev6 \
-             +fff-alfred-monitoring-proxy
+             +fff-alfred-monitoring-proxy \
+             +fff-batman-adv
     VARIANT:=layer3
 endef
 
