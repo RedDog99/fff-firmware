@@ -63,7 +63,7 @@ define Package/fff-layer3
              +@PACKAGE_grev4 \
              +@PACKAGE_grev6 \
              +fff-alfred-monitoring-proxy \
-             +fff-batman-adv
+             +fff-batman-adv-server
     VARIANT:=layer3
 endef
 
