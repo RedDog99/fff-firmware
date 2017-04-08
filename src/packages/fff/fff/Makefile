@@ -49,7 +49,7 @@ define Package/fff-layer3
     $(call Package/fff/base)
     TITLE+=(Layer 3 Gateway)
     DEPENDS+=+dnsmasq \
-             +babeld \
+             +fff-babeld \
              +fff-openvpn \
              +arptables \
              +ebtables \
