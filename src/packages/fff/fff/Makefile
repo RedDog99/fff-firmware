@@ -48,7 +48,7 @@ endef
 define Package/fff-layer3
     $(call Package/fff/base)
     TITLE+=(Layer 3 Gateway)
-    DEPENDS+=+dnsmasq \
+    DEPENDS+=+fff-dhcp \
              +fff-babeld \
              +fff-openvpn \
              +arptables \
